@@ -1,126 +1,78 @@
 # omnilens
 
-**AI-native code verification engine** — detect semantic changes, invariant violations, and missing tests across Rust, TypeScript, and Python.
+**Your AI's eyes into your codebase.**
+
+omnilens analyzes your entire project in milliseconds and gives AI a complete map — every file, function, type, call graph, and dependency. AI uses this to understand your code and work on it.
+
+## Install
 
 ```bash
 npm install -g omnilens
 ```
 
-## Quick Start
+## Use
 
 ```bash
 cd your-project
-omnilens init
-omnilens index          # Build semantic graph (42 files in ~110ms)
+omnilens
 ```
 
-## Commands
+That's it. Output:
 
-### Verify changes (semantic diff)
+```
+  omnilens 11ms | 13 files | 45 functions | 9 types
+  Health: 100/100
+  Cross-file deps: 23
+
+  .omnilens/snapshot.json
+```
+
+Now open your AI (Claude, Cursor, GPT, whatever) and start working. AI reads `snapshot.json` and understands your project instantly.
+
+## What AI gets
+
+`snapshot.json` contains:
+
+- **Every file** with functions, types, imports
+- **Call graph** — who calls what, across files
+- **Complexity scores** — which functions are risky
+- **Cross-file dependencies** — change X, Y breaks
+- **Health score** — overall project quality
+- **Hotspots** — where bugs are likely hiding
+
+AI doesn't need to open files one by one. It gets the full picture in one read.
+
+## What AI can do with omnilens
+
+When AI needs deeper analysis, it calls omnilens internally:
 
 ```bash
-omnilens verify --diff HEAD~1          # Compare against last commit
-omnilens verify --diff main            # Compare against main branch
-omnilens --format json verify --diff HEAD~1   # JSON for CI/CD
-```
+# "What breaks if I change this function?"
+omnilens impact src/auth.ts --fn login
 
-Output:
-```
-Semantic Changes (3 total)
-  [REVIEW] lib.rs:80 — New function 'ContentHash::is_zero'
-  [REVIEW] lib.rs:75 — New function 'ContentHash::from_str_content'
-  [BREAKING] auth.rs:42 — 'verify_token': parameter count changed (1 → 2)
+# "Did my changes break anything?"
+omnilens verify --format json --diff HEAD~1
 
-PASS 3 semantic changes, 1 warnings | Risk: 19%
-```
-
-### Impact analysis
-
-```bash
-omnilens impact src/auth.rs --fn verify_token
-
-# Output:
-# Who calls this? (3 total)
-#   → login (auth.rs:12)
-#   → middleware (server.rs:45)
-#   →→ main (main.rs:8)
-#
-# What does it call? (5 total)
-#   → jwt.decode (jwt.rs:20)
-#   → db.find_user (db.rs:33)
-```
-
-### Query the codebase (OmniQL)
-
-```bash
+# "Find all complex functions"
 omnilens query "FIND functions WHERE complexity > 15"
-omnilens query "FIND functions WHERE calls(db.query) AND visibility = public"
-omnilens query "FIND types WHERE fields > 5"
-omnilens query "FIND functions WHERE NOT calls(unwrap)"
-omnilens query 'FIND functions WHERE name ~ "*test*"'
+
+# "Generate tests for untested code"
+omnilens fix
 ```
 
-### Discover invariants
+You don't run these. AI does.
 
-```bash
-omnilens invariants
+## Supported languages
 
-# Output:
-# INV [CONVENTION] Public functions use snake_case (66/66 = 100%)
-# INV [CONVENTION] Public types use PascalCase (76/76 = 100%)
-# INV [ERROR-HANDLING] Found 37 functions returning Result
-# INV [ORDERING] Initialization function leads to 14 downstream operations
-```
+Rust, TypeScript, JavaScript, Python
 
-## Git Hooks
+## Performance
 
-```bash
-omnilens hook install     # Auto-verify on commit and push
-omnilens hook uninstall
-```
-
-## CI/CD
-
-Works with any platform — auto-detects GitHub, GitLab, Jenkins, Bitbucket, Azure DevOps:
-
-```bash
-omnilens ci                        # Auto-detect platform
-omnilens --format json ci          # JSON output
-omnilens --format sarif ci         # SARIF for code scanning
-```
-
-## Output Formats
-
-| Format | Use | Flag |
-|--------|-----|------|
-| Text | Terminal | `--format text` (default) |
-| JSON | CI/CD, AI agents | `--format json` |
-| SARIF | GitHub/GitLab Code Scanning | `--format sarif` |
-
-## Supported Languages
-
-| Language | Extensions |
-|----------|-----------|
-| Rust | `.rs` |
-| TypeScript/JavaScript | `.ts` `.tsx` `.js` `.jsx` `.mts` `.mjs` |
-| Python | `.py` `.pyi` |
-
-## AI Agent Integration
-
-omnilens can be used as a tool by AI coding agents:
-
-- **MCP Server** — for Claude Desktop/Code
-- **Python SDK** — `pip install omnilens` with LangChain + OpenAI function calling
-- **OpenAPI spec** — REST API for any agent
-- **JSON output** — parseable by any system
-
-See [AI Integration Guide](https://github.com/injaehwang/omnilens/blob/main/docs/ai-integration.md).
-
-## Links
-
-- [GitHub](https://github.com/injaehwang/omnilens)
-- [Releases](https://github.com/injaehwang/omnilens/releases)
-- [Documentation](https://github.com/injaehwang/omnilens/blob/main/docs/)
+| Project size | Analysis time |
+|-------------|---------------|
+| 10 files | ~10ms |
+| 100 files | ~100ms |
+| 1000 files | ~1s |
 
 ## License
 

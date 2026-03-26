@@ -1,7 +1,7 @@
 {
   "name": "omnilens",
-  "version": "0.1.1",
-  "description": "AI-native code verification engine — detect semantic changes, invariant violations, and missing tests",
+  "version": "1.0.0",
+  "description": "Your AI's eyes into your codebase. Analyzes entire projects in milliseconds.",
   "license": "Apache-2.0 OR MIT",
   "repository": {
     "type": "git",
