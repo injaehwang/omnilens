@@ -4,6 +4,7 @@
 //! Coordinates language frontends, semantic graph, analysis passes,
 //! and verification pipelines.
 
+pub mod ai;
 pub mod frontend;
 pub mod invariants;
 pub mod output;
