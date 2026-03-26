@@ -1,0 +1,12 @@
+[package]
+name = "omnilens-query"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "OmniQL query language — parser, planner, and execution engine"
+
+[dependencies]
+omnilens-ir = { workspace = true }
+omnilens-graph = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }

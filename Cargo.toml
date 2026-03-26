@@ -1,0 +1,74 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/omnilens-cli",
+    "crates/omnilens-core",
+    "crates/omnilens-ir",
+    "crates/omnilens-graph",
+    "crates/omnilens-index",
+    "crates/omnilens-storage",
+    "crates/omnilens-query",
+    "crates/omnilens-frontend-rust",
+    "crates/omnilens-frontend-typescript",
+    "crates/omnilens-frontend-python",
+    "crates/omnilens-lsp",
+    "crates/omnilens-runtime",
+    "crates/omnilens-testgen",
+    "crates/omnilens-plugin",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/omnilens/omnilens"
+description = "Universal Codebase Intelligence Engine"
+rust-version = "1.85"
+
+[workspace.dependencies]
+# Core
+omnilens-core = { path = "crates/omnilens-core" }
+omnilens-ir = { path = "crates/omnilens-ir" }
+omnilens-graph = { path = "crates/omnilens-graph" }
+omnilens-index = { path = "crates/omnilens-index" }
+omnilens-storage = { path = "crates/omnilens-storage" }
+omnilens-query = { path = "crates/omnilens-query" }
+omnilens-lsp = { path = "crates/omnilens-lsp" }
+omnilens-runtime = { path = "crates/omnilens-runtime" }
+omnilens-testgen = { path = "crates/omnilens-testgen" }
+omnilens-plugin = { path = "crates/omnilens-plugin" }
+
+# Language frontends
+omnilens-frontend-rust = { path = "crates/omnilens-frontend-rust" }
+omnilens-frontend-typescript = { path = "crates/omnilens-frontend-typescript" }
+omnilens-frontend-python = { path = "crates/omnilens-frontend-python" }
+
+# External dependencies
+tree-sitter = "0.24"
+petgraph = "0.7"
+redb = "2.4"
+rayon = "1.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bincode = "1"
+sha2 = "0.10"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio = { version = "1", features = ["full"] }
+memmap2 = "0.9"
+walkdir = "2"
+ignore = "0.4"
+colored = "3"
+hex = "0.4"
+tree-sitter-rust = "0.23"
+tree-sitter-typescript = "0.23"
+tree-sitter-python = "0.23"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

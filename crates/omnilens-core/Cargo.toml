@@ -1,0 +1,20 @@
+[package]
+name = "omnilens-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Core orchestration layer for omnilens — coordinates analysis, verification, and reporting"
+
+[dependencies]
+omnilens-ir = { workspace = true }
+omnilens-graph = { workspace = true }
+omnilens-index = { workspace = true }
+omnilens-storage = { workspace = true }
+omnilens-query = { workspace = true }
+omnilens-testgen = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+rayon = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

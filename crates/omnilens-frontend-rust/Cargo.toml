@@ -1,0 +1,16 @@
+[package]
+name = "omnilens-frontend-rust"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Rust language frontend — tree-sitter parser to USIR"
+
+[dependencies]
+omnilens-ir = { workspace = true }
+omnilens-core = { workspace = true }
+tree-sitter = { workspace = true }
+anyhow = { workspace = true }
+tree-sitter-rust = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]

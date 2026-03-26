@@ -1,0 +1,11 @@
+[package]
+name = "omnilens-plugin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "WASM plugin system — sandboxed extensibility for custom analyzers"
+
+[dependencies]
+omnilens-ir = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }

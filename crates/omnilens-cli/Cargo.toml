@@ -1,0 +1,24 @@
+[package]
+name = "omnilens"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Universal AI-native code verification engine"
+
+[[bin]]
+name = "omnilens"
+path = "src/main.rs"
+
+[dependencies]
+omnilens-core = { workspace = true }
+omnilens-ir = { workspace = true }
+omnilens-graph = { workspace = true }
+omnilens-frontend-rust = { workspace = true }
+omnilens-frontend-typescript = { workspace = true }
+omnilens-frontend-python = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+colored = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

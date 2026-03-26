@@ -1,0 +1,12 @@
+[package]
+name = "omnilens-testgen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AI-native test synthesis — property-based, boundary, and contract tests"
+
+[dependencies]
+omnilens-ir = { workspace = true }
+omnilens-graph = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }

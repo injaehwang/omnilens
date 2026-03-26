@@ -1,0 +1,15 @@
+[package]
+name = "omnilens-storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Persistent storage layer — content-addressed objects with redb backend"
+
+[dependencies]
+omnilens-ir = { workspace = true }
+redb = { workspace = true }
+serde = { workspace = true }
+bincode = { workspace = true }
+anyhow = { workspace = true }
+memmap2 = { workspace = true }
+hex = { workspace = true }

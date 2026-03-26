@@ -1,0 +1,14 @@
+[package]
+name = "omnilens-graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Semantic graph — in-memory graph database over USIR nodes and edges"
+
+[dependencies]
+omnilens-ir = { workspace = true }
+petgraph = { workspace = true }
+serde = { workspace = true }
+bincode = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }

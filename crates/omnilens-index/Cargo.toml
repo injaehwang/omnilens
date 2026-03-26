@@ -1,0 +1,14 @@
+[package]
+name = "omnilens-index"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Incremental indexing engine — git-aware, content-addressed change detection"
+
+[dependencies]
+omnilens-ir = { workspace = true }
+sha2 = { workspace = true }
+anyhow = { workspace = true }
+walkdir = { workspace = true }
+ignore = { workspace = true }
+tracing = { workspace = true }
