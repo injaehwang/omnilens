@@ -10,6 +10,7 @@ pub mod invariants;
 pub mod manifest;
 pub mod output;
 pub mod semantic_diff;
+pub mod snapshot;
 pub mod verify;
 pub mod config;
 

@@ -1,4 +1,7 @@
-// Developer commands
+// Main command
+pub mod analyze;
+
+// Supporting commands (AI calls these internally)
 pub mod check;
 pub mod fix;
 pub mod status;
