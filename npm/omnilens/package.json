@@ -1,6 +1,6 @@
 {
   "name": "omnilens",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI-native code verification engine — detect semantic changes, invariant violations, and missing tests",
   "license": "Apache-2.0 OR MIT",
   "repository": {
@@ -20,6 +20,19 @@
     "omnilens-darwin-arm64": "0.1.0",
     "omnilens-win32-x64": "0.1.0"
   },
-  "keywords": ["code-analysis", "verification", "ai", "semantic-diff", "omnilens", "rust", "typescript", "python"],
-  "files": ["bin", "install.js", "README.md"]
+  "keywords": [
+    "code-analysis",
+    "verification",
+    "ai",
+    "semantic-diff",
+    "omnilens",
+    "rust",
+    "typescript",
+    "python"
+  ],
+  "files": [
+    "bin",
+    "install.js",
+    "README.md"
+  ]
 }

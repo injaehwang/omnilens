@@ -1,3 +1,10 @@
+// Developer commands
+pub mod check;
+pub mod status;
+pub mod hook;
+pub mod ci;
+
+// Advanced commands (AI agents & power users)
 pub mod init;
 pub mod index;
 pub mod impact;
@@ -8,8 +15,6 @@ pub mod trace;
 pub mod graph;
 pub mod serve;
 pub mod invariants;
-pub mod hook;
-pub mod ci;
 
 use omnilens_core::Engine;
 use omnilens_frontend_python::PythonFrontend;
