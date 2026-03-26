@@ -162,21 +162,21 @@ pub fn generate(
                 purpose: "Scan code changes for problems: breaking changes, missing tests, complexity spikes.".into(),
                 usage: "omnilens check [files...]".into(),
                 output: "Grouped issues by file with severity and suggested actions.".into(),
-                when: "After modifying any code, before committing.".into(),
+                when: "ONCE after completing a logical unit of work, before committing. NOT after every individual edit.".into(),
             },
             CommandSpec {
                 name: "omnilens fix".into(),
                 purpose: "Auto-generate tests for untested functions and run them.".into(),
                 usage: "omnilens fix [files...]".into(),
                 output: "Generated test files + test execution results.".into(),
-                when: "When omnilens check reports missing tests.".into(),
+                when: "ONCE when omnilens check reports missing tests. Do not loop — fix handles retries internally.".into(),
             },
             CommandSpec {
                 name: "omnilens fix --auto".into(),
-                purpose: "Generate tests, run them, and use AI to fix failures in a loop.".into(),
+                purpose: "Generate tests, run them, and fix failures in an internal loop. AI should NOT wrap this in another loop.".into(),
                 usage: "omnilens fix --auto --max-retries 3".into(),
                 output: "Iterative test generation and fixing until all pass.".into(),
-                when: "When you want fully automated test creation and fixing.".into(),
+                when: "ONCE when tests are failing. This command loops internally — do NOT retry it yourself.".into(),
             },
             CommandSpec {
                 name: "omnilens verify --format json --diff <ref>".into(),
@@ -243,8 +243,18 @@ fn generate_rules(graph: &omnilens_graph::SemanticGraph) -> Vec<Rule> {
 
     // Always include base rules.
     rules.push(Rule {
-        id: "run-check".into(),
-        description: "Run `omnilens check` after every code modification.".into(),
+        id: "when-to-check".into(),
+        description: "Run `omnilens check` ONCE when your task is complete, before committing. Do NOT run it after every individual edit — only when you are done with a logical unit of work.".into(),
+        severity: "required".into(),
+    });
+    rules.push(Rule {
+        id: "fix-loop".into(),
+        description: "If `omnilens check` reports issues, run `omnilens fix --auto` ONCE. The fix loop handles retries internally. Do NOT call check or fix again yourself — wait for the loop to finish.".into(),
+        severity: "required".into(),
+    });
+    rules.push(Rule {
+        id: "no-infinite-loop".into(),
+        description: "NEVER call omnilens inside a loop you control. The workflow is: (1) do your work, (2) omnilens check, (3) if needed omnilens fix --auto, (4) commit. That's it. Three steps maximum.".into(),
         severity: "required".into(),
     });
     rules.push(Rule {
