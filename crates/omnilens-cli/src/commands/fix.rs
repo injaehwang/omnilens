@@ -1,8 +1,9 @@
-//! `omnilens fix` — auto-generate fixes for problems found by check.
+//! `omnilens fix` — auto-generate tests, run them, optionally let AI fix failures.
 //!
-//! Currently generates:
-//! - Test files for untested public functions
-//! - Error handling wrappers for unsafe calls
+//! Flow:
+//!   1. Generate test files for untested public functions
+//!   2. Run tests
+//!   3. If --auto: send failures to AI → AI fixes → rerun → repeat until pass
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -12,7 +13,7 @@ use colored::Colorize;
 use omnilens_ir::node::UsirNode;
 use omnilens_ir::Visibility;
 
-pub fn run(files: Vec<String>) -> Result<()> {
+pub fn run(files: Vec<String>, auto: bool, max_retries: u32) -> Result<()> {
     let mut engine = super::create_engine()?;
     engine.index()?;
 
@@ -31,6 +32,12 @@ pub fn run(files: Vec<String>) -> Result<()> {
         if f.visibility != Visibility::Public { continue; }
 
         let file_path = f.span.file.to_string_lossy().replace('\\', "/");
+
+        // Skip test files — don't generate tests for tests.
+        let file_name = file_path.rsplit('/').next().unwrap_or(&file_path);
+        if file_name.starts_with("test_") || file_name.contains(".test.") || file_name.contains(".spec.") || file_name.starts_with("tests_") {
+            continue;
+        }
 
         // Filter by specified files if any.
         if !files.is_empty() {
@@ -257,15 +264,291 @@ pub fn run(files: Vec<String>) -> Result<()> {
             "pytest".cyan(),
             "cargo".cyan(),
         );
-    } else if any_failed {
-        println!("  {} Some tests failed — review generated tests and fill in TODO stubs", "!".yellow());
-        std::process::exit(1);
-    } else {
-        println!("  {} All tests passed", "✓".green().bold());
+        return Ok(());
     }
-    println!();
 
-    Ok(())
+    if !any_failed {
+        println!("  {} All tests passed", "✓".green().bold());
+        println!();
+        return Ok(());
+    }
+
+    // Tests failed.
+    if !auto {
+        println!("  {} Some tests failed — run {} to let AI fix them", "!".yellow(), "omnilens fix --auto".cyan());
+        println!();
+        std::process::exit(1);
+    }
+
+    // ─── AI-assisted fix loop ───────────────────────────────
+    println!();
+    println!("  {}", "Starting AI-assisted fix loop...".cyan().bold());
+
+    let ai_cmd = detect_ai_command();
+    if ai_cmd.is_none() {
+        println!("  {} No AI agent found.", "!".yellow());
+        println!("    Install one of:");
+        println!("      {} (Claude Code CLI)", "claude".cyan());
+        println!("    Or set {} to a custom command", "OMNILENS_AI_CMD".cyan());
+        println!();
+        std::process::exit(1);
+    }
+    let ai_cmd = ai_cmd.unwrap();
+    println!("  Using: {}", ai_cmd.dimmed());
+
+    let cwd = std::env::current_dir()?;
+
+    for attempt in 1..=max_retries {
+        println!();
+        println!("  {} Attempt {}/{}", "●".cyan(), attempt, max_retries);
+
+        // Collect test failure output.
+        let failure_output = collect_test_failures(&cwd, &file_functions);
+
+        if failure_output.is_empty() {
+            println!("  {} All tests passed!", "✓".green().bold());
+            println!();
+            return Ok(());
+        }
+
+        // Build prompt for AI.
+        let prompt = build_ai_prompt(&cwd, &failure_output);
+
+        // Call AI.
+        println!("  {} Sending failures to AI...", "→".cyan());
+        let ai_success = call_ai(&ai_cmd, &prompt, &cwd);
+
+        if !ai_success {
+            println!("  {} AI command failed", "✗".red());
+            continue;
+        }
+
+        // Rerun tests.
+        println!("  {} Rerunning tests...", "→".cyan());
+        let rerun_output = collect_test_failures(&cwd, &file_functions);
+
+        if rerun_output.is_empty() {
+            println!();
+            println!("  {} All tests passed after AI fix!", "✓".green().bold());
+            println!();
+            return Ok(());
+        }
+
+        let prev_failures = failure_output.lines().filter(|l| l.contains("FAILED")).count();
+        let curr_failures = rerun_output.lines().filter(|l| l.contains("FAILED")).count();
+
+        if curr_failures < prev_failures {
+            println!(
+                "  {} Progress: {} → {} failures",
+                "↓".yellow(),
+                prev_failures,
+                curr_failures
+            );
+        } else {
+            println!(
+                "  {} No progress: still {} failures",
+                "·".dimmed(),
+                curr_failures
+            );
+        }
+    }
+
+    println!();
+    println!(
+        "  {} AI could not fix all tests after {} attempts",
+        "!".yellow(),
+        max_retries
+    );
+    println!("  Review the failing tests manually.");
+    println!();
+    std::process::exit(1);
+}
+
+// ─── AI integration ─────────────────────────────────────────────
+
+fn detect_ai_command() -> Option<String> {
+    // 1. Environment variable override.
+    if let Ok(cmd) = std::env::var("OMNILENS_AI_CMD") {
+        if !cmd.is_empty() {
+            return Some(cmd);
+        }
+    }
+
+    // 2. Claude Code CLI.
+    if command_exists("claude") {
+        return Some("claude".to_string());
+    }
+
+    None
+}
+
+fn command_exists(cmd: &str) -> bool {
+    #[cfg(windows)]
+    {
+        std::process::Command::new("where")
+            .arg(cmd)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+    #[cfg(not(windows))]
+    {
+        std::process::Command::new("which")
+            .arg(cmd)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+}
+
+fn collect_test_failures(cwd: &Path, file_functions: &BTreeMap<String, Vec<FnInfo>>) -> String {
+    let mut output = String::new();
+
+    // Python tests.
+    let has_py = file_functions.keys().any(|f| f.ends_with(".py"));
+    if has_py {
+        if let Some((cmd, args)) = detect_py_runner(cwd) {
+            let result = std::process::Command::new(&cmd)
+                .args(&args)
+                .current_dir(cwd)
+                .env("PYTHONPATH", cwd)
+                .output();
+            if let Ok(r) = result {
+                let stdout = String::from_utf8_lossy(&r.stdout);
+                let stderr = String::from_utf8_lossy(&r.stderr);
+                if !r.status.success() {
+                    output.push_str("=== Python test failures ===\n");
+                    output.push_str(&stdout);
+                    output.push_str(&stderr);
+                    output.push('\n');
+                }
+            }
+        }
+    }
+
+    // TypeScript tests.
+    let has_ts = file_functions.keys().any(|f| {
+        let ext = Path::new(f).extension().and_then(|e| e.to_str()).unwrap_or("");
+        matches!(ext, "ts" | "tsx" | "js" | "jsx")
+    });
+    if has_ts {
+        if let Some((cmd, args)) = detect_ts_runner(cwd) {
+            let result = std::process::Command::new(&cmd)
+                .args(&args)
+                .current_dir(cwd)
+                .output();
+            if let Ok(r) = result {
+                let stdout = String::from_utf8_lossy(&r.stdout);
+                let stderr = String::from_utf8_lossy(&r.stderr);
+                if !r.status.success() {
+                    output.push_str("=== TypeScript test failures ===\n");
+                    output.push_str(&stdout);
+                    output.push_str(&stderr);
+                    output.push('\n');
+                }
+            }
+        }
+    }
+
+    output
+}
+
+fn build_ai_prompt(cwd: &Path, failure_output: &str) -> String {
+    // Collect all test files.
+    let mut test_files = Vec::new();
+    let walker = ignore::WalkBuilder::new(cwd)
+        .hidden(true)
+        .git_ignore(true)
+        .build();
+
+    for entry in walker.flatten() {
+        let path = entry.path();
+        if !path.is_file() { continue; }
+        let name = path.file_name().unwrap_or_default().to_string_lossy();
+        if name.starts_with("test_") && name.ends_with(".py")
+            || name.ends_with(".test.ts")
+            || name.ends_with(".test.js")
+            || name.ends_with(".spec.ts")
+        {
+            if let Ok(content) = std::fs::read_to_string(path) {
+                let relative = path.strip_prefix(cwd).unwrap_or(path);
+                test_files.push((relative.to_string_lossy().to_string(), content));
+            }
+        }
+    }
+
+    // Collect source files referenced by test files.
+    let mut source_files = Vec::new();
+    let walker = ignore::WalkBuilder::new(cwd)
+        .hidden(true)
+        .git_ignore(true)
+        .build();
+
+    for entry in walker.flatten() {
+        let path = entry.path();
+        if !path.is_file() { continue; }
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if matches!(ext, "py" | "ts" | "js" | "tsx" | "jsx" | "rs") {
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            if !name.starts_with("test_") && !name.contains(".test.") && !name.contains(".spec.") {
+                if let Ok(content) = std::fs::read_to_string(path) {
+                    let relative = path.strip_prefix(cwd).unwrap_or(path);
+                    source_files.push((relative.to_string_lossy().to_string(), content));
+                }
+            }
+        }
+    }
+
+    let mut prompt = String::new();
+    prompt.push_str("Fix the failing tests. The test files were auto-generated by omnilens.\n");
+    prompt.push_str("Read the source code to understand what each function does, then fix the test files so they pass.\n");
+    prompt.push_str("Only modify test files (test_*.py, *.test.ts). Do NOT modify source files.\n");
+    prompt.push_str("Replace TODO/None stubs with real values. Fix mock setups. Fix assertions.\n\n");
+
+    prompt.push_str("=== TEST FAILURES ===\n");
+    prompt.push_str(failure_output);
+    prompt.push_str("\n\n");
+
+    prompt.push_str("=== TEST FILES ===\n");
+    for (path, content) in &test_files {
+        prompt.push_str(&format!("--- {} ---\n{}\n\n", path, content));
+    }
+
+    prompt.push_str("=== SOURCE FILES ===\n");
+    for (path, content) in &source_files {
+        prompt.push_str(&format!("--- {} ---\n{}\n\n", path, content));
+    }
+
+    prompt
+}
+
+fn call_ai(cmd: &str, prompt: &str, cwd: &Path) -> bool {
+    // Write prompt to temp file.
+    let prompt_path = cwd.join(".omnilens-fix-prompt.md");
+    if std::fs::write(&prompt_path, prompt).is_err() {
+        return false;
+    }
+
+    let prompt_content = std::fs::read_to_string(&prompt_path).unwrap_or_default();
+
+    let result = if cmd == "claude" {
+        // Claude Code: pass prompt as -p argument (non-interactive, allows file edits).
+        std::process::Command::new(cmd)
+            .args(["-p", &prompt_content, "--allowedTools", "Edit,Write,Read"])
+            .current_dir(cwd)
+            .status()
+    } else {
+        // Custom command: pass prompt file as argument.
+        std::process::Command::new(cmd)
+            .arg(&prompt_path)
+            .current_dir(cwd)
+            .status()
+    };
+
+    // Cleanup prompt file.
+    let _ = std::fs::remove_file(&prompt_path);
+
+    result.map(|s| s.success()).unwrap_or(false)
 }
 
 struct FnInfo {

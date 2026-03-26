@@ -507,6 +507,7 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
+ "ignore",
  "omnilens-core",
  "omnilens-frontend-python",
  "omnilens-frontend-rust",

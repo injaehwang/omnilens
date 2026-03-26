@@ -35,6 +35,12 @@ enum Command {
     Fix {
         /// Only fix specific files.
         files: Vec<String>,
+        /// Let AI agent fix failing tests automatically (loop until pass).
+        #[arg(long)]
+        auto: bool,
+        /// Max AI retry attempts.
+        #[arg(long, default_value = "3")]
+        max_retries: u32,
     },
 
     /// Show project health dashboard.
@@ -142,7 +148,7 @@ fn main() -> Result<()> {
     match command {
         // ─── Developer commands ──────────────────────────────
         Command::Check { files } => commands::check::run(files, &cli.format),
-        Command::Fix { files } => commands::fix::run(files),
+        Command::Fix { files, auto, max_retries } => commands::fix::run(files, auto, max_retries),
         Command::Status => commands::status::run(),
         Command::Hook { action } => commands::hook::run(action),
         Command::Ci { platform, fail_on } => {
