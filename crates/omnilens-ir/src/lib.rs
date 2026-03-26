@@ -61,7 +61,8 @@ pub enum Visibility {
 pub struct ContentHash(pub [u8; 32]);
 
 impl ContentHash {
-    pub fn from_bytes(data: &[u8]) -> Self {
+    /// Compute a hash with an optional salt for extra security.
+    pub fn from_bytes(data: &[u8], salt: Option<&[u8]>) -> Self {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(data);
