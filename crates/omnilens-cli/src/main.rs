@@ -31,6 +31,12 @@ enum Command {
         files: Vec<String>,
     },
 
+    /// Auto-fix problems found by check.
+    Fix {
+        /// Only fix specific files.
+        files: Vec<String>,
+    },
+
     /// Show project health dashboard.
     Status,
 
@@ -136,6 +142,7 @@ fn main() -> Result<()> {
     match command {
         // ─── Developer commands ──────────────────────────────
         Command::Check { files } => commands::check::run(files, &cli.format),
+        Command::Fix { files } => commands::fix::run(files),
         Command::Status => commands::status::run(),
         Command::Hook { action } => commands::hook::run(action),
         Command::Ci { platform, fail_on } => {

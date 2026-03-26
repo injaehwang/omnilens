@@ -1,5 +1,6 @@
 // Developer commands
 pub mod check;
+pub mod fix;
 pub mod status;
 pub mod hook;
 pub mod ci;
