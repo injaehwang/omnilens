@@ -1,9 +1,31 @@
 #!/usr/bin/env node
+const { existsSync } = require("fs");
 const { join } = require("path");
-const { spawnSync } = require("child_process");
+const { spawnSync, execSync } = require("child_process");
 
 const ext = process.platform === "win32" ? ".exe" : "";
-const binary = join(__dirname, "..", "bin", `omnilens-bin${ext}`);
+const binDir = join(__dirname, "..", "bin");
+const binary = join(binDir, `omnilens-bin${ext}`);
+
+// If binary missing, download it now.
+if (!existsSync(binary)) {
+  console.log("omnilens: binary not found, downloading...");
+  try {
+    const installScript = join(__dirname, "..", "install.js");
+    execSync(`node "${installScript}"`, { stdio: "inherit" });
+  } catch {
+    console.error("omnilens: download failed.");
+    console.error("Install manually: cargo install --git https://github.com/injaehwang/omnilens");
+    process.exit(1);
+  }
+}
+
+// Run binary.
+if (!existsSync(binary)) {
+  console.error("omnilens: binary still not found after download.");
+  console.error("Install manually: cargo install --git https://github.com/injaehwang/omnilens");
+  process.exit(1);
+}
 
 const result = spawnSync(binary, process.argv.slice(2), {
   stdio: "inherit",
@@ -11,8 +33,8 @@ const result = spawnSync(binary, process.argv.slice(2), {
 });
 
 if (result.error) {
-  console.error("omnilens: binary not found. Run: npm install -g omnilens");
-  console.error("Or: cargo install --git https://github.com/injaehwang/omnilens");
+  console.error("omnilens: failed to execute binary.");
+  console.error(result.error.message);
   process.exit(1);
 }
 

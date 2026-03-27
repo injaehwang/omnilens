@@ -1,6 +1,6 @@
 {
   "name": "omnilens",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Your AI's eyes into your codebase. Analyzes entire projects in milliseconds.",
   "license": "Apache-2.0 OR MIT",
   "repository": {
