@@ -105,12 +105,17 @@ If the result contains breaking changes or errors:
 
 Do NOT skip this. Do NOT ask the developer to verify. Do it yourself.
 
-## MANDATORY: No extra files
+## MANDATORY: No extra files in project root
 
-- Do NOT create helper scripts, temporary files, migration scripts, or new folders for your work.
-- Modify existing source files directly.
-- If you need to store anything, put it in `.omnilens/` only.
-- Do NOT create `scripts/`, `tools/`, `migrations/`, or similar directories.
+THIS IS A STRICT RULE. VIOLATION IS NOT ACCEPTABLE.
+
+- You MUST NOT create ANY new files or folders in the project root or anywhere outside `.omnilens/`.
+- No scripts. No helper files. No migration files. No temp files. No new folders. NOTHING.
+- The ONLY place you may create files is inside `.omnilens/` directory.
+- Modify EXISTING source files directly. If a file doesn't exist, do NOT create it unless the developer explicitly asks.
+- If you need a scratch file for your work, put it in `.omnilens/` and delete it when done.
+- FORBIDDEN: `scripts/`, `tools/`, `migrations/`, `utils/`, `helpers/`, `temp/`, or any new directory.
+- If you catch yourself about to create a file outside `.omnilens/`, STOP and find another way.
 
 ## MANDATORY: Code formatting
 
