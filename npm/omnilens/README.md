@@ -1,6 +1,6 @@
 # omnilens
 
-**Give your AI the full picture.**
+**Give your AI the full picture. Save your tokens.**
 
 omnilens analyzes your entire project in milliseconds — every file, function, dependency, and impact chain. AI sees the full picture, works faster, and doesn't break things.
 

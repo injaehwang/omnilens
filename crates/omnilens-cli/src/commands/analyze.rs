@@ -27,11 +27,34 @@ pub fn run() -> Result<()> {
         duration.as_millis() as u64,
     );
 
-    // Write snapshot.
-    let snapshot_json = serde_json::to_string_pretty(&snapshot)?;
-    std::fs::write(omnilens_dir.join("snapshot.json"), &snapshot_json)?;
+    // Backup previous snapshot for diff.
+    let snapshot_path = omnilens_dir.join("snapshot.json");
+    let prev_path = omnilens_dir.join("snapshot.prev.json");
+    if snapshot_path.exists() {
+        let _ = std::fs::copy(&snapshot_path, &prev_path);
+    }
 
-    // Write AI context files — covers all major AI tools.
+    // Write full snapshot (for omnilens internal use).
+    let snapshot_json = serde_json::to_string_pretty(&snapshot)?;
+    std::fs::write(&snapshot_path, &snapshot_json)?;
+
+    // Write summary (lightweight, AI reads this).
+    let summary = omnilens_core::summary::generate_summary(&snapshot);
+    let summary_json = serde_json::to_string_pretty(&summary)?;
+    std::fs::write(omnilens_dir.join("summary.json"), &summary_json)?;
+
+    // Write changes (if previous snapshot exists).
+    if prev_path.exists() {
+        if let Some(changes) = omnilens_core::summary::generate_changes(&snapshot, &prev_path) {
+            let changes_json = serde_json::to_string_pretty(&changes)?;
+            std::fs::write(omnilens_dir.join("changes.json"), &changes_json)?;
+        } else {
+            // No changes — remove stale changes.json.
+            let _ = std::fs::remove_file(omnilens_dir.join("changes.json"));
+        }
+    }
+
+    // Write AI context files.
     write_ai_context(&cwd)?;
 
     // Output for human + AI.
@@ -75,7 +98,7 @@ pub fn run() -> Result<()> {
 }
 
 /// One-line pointer that goes into AI config files at project root.
-const AI_POINTER: &str = "When the developer says \"omnilens\", \"let's start omnilens\", \"start omnilens\", or anything mentioning omnilens, read `.omnilens/ai-instructions.md` and `.omnilens/snapshot.json`, then follow the instructions.";
+const AI_POINTER: &str = "When the developer mentions \"omnilens\", read `.omnilens/ai-instructions.md` and `.omnilens/summary.json`, then follow the instructions.";
 
 fn write_ai_context(cwd: &std::path::Path) -> Result<()> {
     let omnilens_dir = cwd.join(".omnilens");
@@ -86,9 +109,13 @@ fn write_ai_context(cwd: &std::path::Path) -> Result<()> {
 ## Activation
 
 When the developer mentions "omnilens" in any form:
-1. Read `.omnilens/snapshot.json` — this is the complete project analysis.
-2. Follow the `ai_instructions` field inside it.
-3. Tell the developer the project is analyzed and ask what they need.
+1. Read `.omnilens/summary.json` — lightweight project overview with instructions.
+2. If `.omnilens/changes.json` exists, read it — shows what changed since last analysis.
+3. Follow the `ai_instructions` in summary.json.
+4. Tell the developer the project is analyzed and ask what they need.
+
+Do NOT read `snapshot.json` directly — it's large. Use `summary.json` instead.
+For detailed data, use omnilens commands (verify, impact, query).
 
 ## Principles
 

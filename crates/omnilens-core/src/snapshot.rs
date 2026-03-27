@@ -6,14 +6,14 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use omnilens_graph::SemanticGraph;
 use omnilens_ir::node::UsirNode;
 use omnilens_ir::Visibility;
 
 /// Complete project snapshot — AI reads this one file to understand everything.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Snapshot {
     /// When this snapshot was generated.
     pub generated_at: String,
@@ -42,7 +42,7 @@ pub struct Snapshot {
     pub ai_instructions: AiInstructions,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Tooling {
     /// Type checker command (e.g., "npx vue-tsc --noEmit", "npx tsc --noEmit").
     pub type_check: Option<String>,
@@ -54,7 +54,7 @@ pub struct Tooling {
     pub test_runner: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct AiInstructions {
     /// What to say to the developer after reading the snapshot.
     pub on_ready: String,
@@ -62,7 +62,7 @@ pub struct AiInstructions {
     pub behavior: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ProjectOverview {
     pub languages: Vec<String>,
     pub framework: Option<String>,
@@ -71,7 +71,7 @@ pub struct ProjectOverview {
     pub total_types: usize,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct FileInfo {
     pub language: String,
     pub functions: Vec<FunctionInfo>,
@@ -79,7 +79,7 @@ pub struct FileInfo {
     pub imports: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct FunctionInfo {
     pub name: String,
     pub line: u32,
@@ -94,7 +94,7 @@ pub struct FunctionInfo {
     pub called_by: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TypeInfo {
     pub name: String,
     pub kind: String,
@@ -103,7 +103,7 @@ pub struct TypeInfo {
     pub visibility: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Dependency {
     pub from_file: String,
     pub from_function: String,
@@ -111,14 +111,14 @@ pub struct Dependency {
     pub to_function: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Health {
     pub score: u32,
     pub hotspots: Vec<Hotspot>,
     pub invariants: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Hotspot {
     pub file: String,
     pub function: String,
@@ -126,7 +126,7 @@ pub struct Hotspot {
     pub reason: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Capability {
     pub command: String,
     pub description: String,

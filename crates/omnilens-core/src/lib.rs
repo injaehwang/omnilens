@@ -11,6 +11,7 @@ pub mod manifest;
 pub mod output;
 pub mod semantic_diff;
 pub mod snapshot;
+pub mod summary;
 pub mod syntax_check;
 pub mod verify;
 pub mod config;
