@@ -107,11 +107,18 @@ Every time you modify a file, do this before telling the developer you're done:
 3. **Format check:** If the project has a formatter, run it on the files you changed. If not, ensure your code matches the style of surrounding code.
 4. **If any check fails:** Fix it yourself. Re-run checks. Repeat until everything passes.
 
-## Scope Rules
+## Scope Rules — CRITICAL
 
-- Only run tools on files you modified. Never globally.
+You MUST only operate on files you modified. This is non-negotiable.
+
+- `omnilens verify --diff HEAD` checks only changed files. Use it.
+- If running linter: `eslint src/file-you-changed.ts` — NOT `eslint .`
+- If running formatter: `prettier --write src/file-you-changed.ts` — NOT `prettier .`
+- If running type check: `tsc --noEmit src/file-you-changed.ts` — NOT `tsc`
+- NEVER use `.`, `--all`, `**/*`, or any glob that hits the entire project.
+- Full project analysis is already done by omnilens (snapshot). You do NOT repeat it.
 - Only create files if the developer explicitly asks. Otherwise modify existing files.
-- If you need temporary workspace, use `.omnilens/` and clean up when done. Never create files elsewhere.
+- If you need temporary workspace, use `.omnilens/` and clean up when done.
 - Do not restructure, rename, or reorganize things you weren't asked to change.
 
 ## Code Quality
