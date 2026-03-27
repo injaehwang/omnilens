@@ -41,6 +41,8 @@ Open your AI tool and say:
 | Windsurf | `let's start omnilens` |
 | Any AI | `let's start omnilens` |
 
+Any variation works: `omnilens`, `start omnilens`, `omnilens 시작`, `review omnilens snapshot` — anything mentioning "omnilens".
+
 AI reads the analysis and responds:
 
 > "Project analyzed. 45 files, 320 functions. What would you like to do?"
