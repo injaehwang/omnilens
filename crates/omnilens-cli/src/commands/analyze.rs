@@ -105,6 +105,15 @@ If the result contains breaking changes or errors:
 
 Do NOT skip this. Do NOT ask the developer to verify. Do it yourself.
 
+## MANDATORY: Only touch files you modified
+
+- NEVER run lint, format, or any tool on the entire project. Only on files YOU changed.
+- NEVER run `eslint .` or `prettier .` or `pylint .` — these affect all files.
+- If you need to lint, target specific files: `eslint src/auth.ts src/api.ts`
+- If you need to format, target specific files: `prettier --write src/auth.ts`
+- `omnilens verify --diff HEAD` already checks only changed files. Use it.
+- Your job is to fix what you changed, not to fix the entire project.
+
 ## MANDATORY: No extra files in project root
 
 THIS IS A STRICT RULE. VIOLATION IS NOT ACCEPTABLE.
