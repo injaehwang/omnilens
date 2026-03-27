@@ -102,6 +102,13 @@ If the result contains breaking changes or errors:
 
 Do NOT skip this. Do NOT ask the developer to verify. Do it yourself.
 
+## MANDATORY: No extra files
+
+- Do NOT create helper scripts, temporary files, migration scripts, or new folders for your work.
+- Modify existing source files directly.
+- If you need to store anything, put it in `.omnilens/` only.
+- Do NOT create `scripts/`, `tools/`, `migrations/`, or similar directories.
+
 ## Available commands (use internally, do NOT show to developer)
 - `omnilens verify --format json --diff HEAD` — MUST run after every file modification
 - `omnilens impact <file> --fn <name>` — check before modifying a function
