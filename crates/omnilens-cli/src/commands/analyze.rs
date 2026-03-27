@@ -109,6 +109,26 @@ Do NOT skip this. Do NOT ask the developer to verify. Do it yourself.
 - If you need to store anything, put it in `.omnilens/` only.
 - Do NOT create `scripts/`, `tools/`, `migrations/`, or similar directories.
 
+## MANDATORY: Code formatting
+
+- Every file you modify MUST have correct indentation and line breaks when you're done.
+- After modifying a file, if the project has a formatter (prettier, eslint, etc.), run it.
+- If no formatter exists, ensure consistent indentation manually.
+- HTML/Vue tags MUST have correct attribute formatting:
+  - One attribute per line if more than 2 attributes
+  - Closing `>` or `/>` on its own line or aligned with opening tag
+  - Proper indentation inside tags
+- BAD: `<BTable :field="x" / show-empty>` or broken line breaks
+- GOOD:
+  ```
+  <b-table
+    :items="items"
+    :fields="fields"
+    show-empty
+  >
+  ```
+- Do NOT mark work as complete if formatting is broken.
+
 ## Available commands (use internally, do NOT show to developer)
 - `omnilens verify --format json --diff HEAD` — MUST run after every file modification
 - `omnilens impact <file> --fn <name>` — check before modifying a function
