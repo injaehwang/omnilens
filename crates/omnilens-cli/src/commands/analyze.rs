@@ -65,7 +65,7 @@ pub fn run() -> Result<()> {
     }
 
     println!();
-    println!("  {}", ".omnilens/snapshot.json".dimmed());
+    println!("  Tell your AI: {}", "\"Review the omnilens snapshot\"".cyan());
     println!();
 
     Ok(())
