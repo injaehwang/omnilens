@@ -81,86 +81,55 @@ fn write_ai_context(cwd: &std::path::Path) -> Result<()> {
     let omnilens_dir = cwd.join(".omnilens");
 
     // Full instructions go inside .omnilens/ — not in project root.
-    std::fs::write(omnilens_dir.join("ai-instructions.md"), r#"# omnilens
+    std::fs::write(omnilens_dir.join("ai-instructions.md"), r#"# omnilens — AI Instructions
 
-When the developer says "omnilens", "let's start omnilens", "start omnilens", or anything mentioning omnilens:
-1. Read `.omnilens/snapshot.json`
-2. Follow the `ai_instructions` inside it
-3. Tell the developer the project is analyzed and ask what they need
+## Activation
 
-This project uses omnilens for code analysis. Read `.omnilens/snapshot.json` for the full project map.
+When the developer mentions "omnilens" in any form:
+1. Read `.omnilens/snapshot.json` — this is the complete project analysis.
+2. Follow the `ai_instructions` field inside it.
+3. Tell the developer the project is analyzed and ask what they need.
 
-## MANDATORY: Verify after every modification
+## Principles
 
-After modifying ANY file, you MUST do BOTH:
+1. **You are a collaborator.** Speak as a colleague who knows the codebase. Not as a tool.
+2. **You own your changes.** If you break something, you fix it. No exceptions.
+3. **You leave the project cleaner than you found it.** Every file you touch must be valid, formatted, and consistent.
+4. **You operate within boundaries.** Only modify what's needed. Don't touch what you weren't asked to touch.
+5. **You verify your work.** Never mark anything complete without confirming it works.
 
-### Step 1: omnilens verify
-```
-omnilens verify --format json --diff HEAD
-```
+## After Every Modification
 
-### Step 2: Project's own linter/type checker (on changed files only)
-- If `tsconfig.json` or `vue` files exist: run `npx vue-tsc --noEmit` or `npx tsc --noEmit`
-- If `eslint` config exists: run `npx eslint <changed-files>`
-- If `pyproject.toml` or Python files: run `python -m py_compile <changed-file>`
-- Run these ONLY on the files you modified, NOT the entire project.
+Every time you modify a file, do this before telling the developer you're done:
 
-### Step 3: Fix and repeat
-If EITHER step finds errors:
-1. Fix them yourself immediately.
-2. Run both checks again.
-3. Repeat until zero errors from both.
-4. Only then tell the developer the work is done.
+1. **Structural check:** `omnilens verify --format json --diff HEAD` — catches breaking changes, syntax errors, bracket mismatches.
+2. **Type/lint check:** Use the project's own tools listed in `snapshot.json → tooling`. Run them on the specific files you changed. Never on the entire project.
+3. **Format check:** If the project has a formatter, run it on the files you changed. If not, ensure your code matches the style of surrounding code.
+4. **If any check fails:** Fix it yourself. Re-run checks. Repeat until everything passes.
 
-This catches: import errors, type errors, unused variables, missing components, syntax errors.
+## Scope Rules
 
-Do NOT skip this. Do NOT ask the developer to verify. Do it yourself.
+- Only run tools on files you modified. Never globally.
+- Only create files if the developer explicitly asks. Otherwise modify existing files.
+- If you need temporary workspace, use `.omnilens/` and clean up when done. Never create files elsewhere.
+- Do not restructure, rename, or reorganize things you weren't asked to change.
 
-## MANDATORY: Only touch files you modified
+## Code Quality
 
-- NEVER run lint, format, or any tool on the entire project. Only on files YOU changed.
-- NEVER run `eslint .` or `prettier .` or `pylint .` — these affect all files.
-- If you need to lint, target specific files: `eslint src/auth.ts src/api.ts`
-- If you need to format, target specific files: `prettier --write src/auth.ts`
-- `omnilens verify --diff HEAD` already checks only changed files. Use it.
-- Your job is to fix what you changed, not to fix the entire project.
+- Match the existing code style of each file: indentation, naming, structure.
+- Ensure every file you modify is syntactically valid in its language.
+- Ensure all imports resolve. If you rename or move something, update all references.
+- Ensure no unclosed tags, brackets, or strings.
+- If the project uses specific conventions (discovered in snapshot), follow them.
 
-## MANDATORY: No extra files in project root
+## Available Tools
 
-THIS IS A STRICT RULE. VIOLATION IS NOT ACCEPTABLE.
+Use internally. Do not show these to the developer.
 
-- You MUST NOT create ANY new files or folders in the project root or anywhere outside `.omnilens/`.
-- No scripts. No helper files. No migration files. No temp files. No new folders. NOTHING.
-- The ONLY place you may create files is inside `.omnilens/` directory.
-- Modify EXISTING source files directly. If a file doesn't exist, do NOT create it unless the developer explicitly asks.
-- If you need a scratch file for your work, put it in `.omnilens/` and delete it when done.
-- FORBIDDEN: `scripts/`, `tools/`, `migrations/`, `utils/`, `helpers/`, `temp/`, or any new directory.
-- If you catch yourself about to create a file outside `.omnilens/`, STOP and find another way.
-
-## MANDATORY: Code formatting
-
-- Every file you modify MUST have correct indentation and line breaks when you're done.
-- After modifying a file, if the project has a formatter (prettier, eslint, etc.), run it.
-- If no formatter exists, ensure consistent indentation manually.
-- HTML/Vue tags MUST have correct attribute formatting:
-  - One attribute per line if more than 2 attributes
-  - Closing `>` or `/>` on its own line or aligned with opening tag
-  - Proper indentation inside tags
-- BAD: `<BTable :field="x" / show-empty>` or broken line breaks
-- GOOD:
-  ```
-  <b-table
-    :items="items"
-    :fields="fields"
-    show-empty
-  >
-  ```
-- Do NOT mark work as complete if formatting is broken.
-
-## Available commands (use internally, do NOT show to developer)
-- `omnilens verify --format json --diff HEAD` — MUST run after every file modification
-- `omnilens impact <file> --fn <name>` — check before modifying a function
-- `omnilens query "FIND functions WHERE ..."` — search codebase
+- `omnilens verify --format json --diff HEAD` — verify your changes
+- `omnilens impact <file> --fn <name>` — check what depends on a function before changing it
+- `omnilens query "FIND functions WHERE ..."` — search the codebase
+- Check `snapshot.json → tooling` for project-specific linter, type checker, formatter, test runner
 "#)?;
 
     // Minimal pointers in AI config files. Append only if not already present.
