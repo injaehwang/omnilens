@@ -1,3 +1,19 @@
 #!/usr/bin/env node
-console.error("omnilens binary not installed. Run: npm install -g omnilens");
-process.exit(1);
+const { join } = require("path");
+const { spawnSync } = require("child_process");
+
+const ext = process.platform === "win32" ? ".exe" : "";
+const binary = join(__dirname, "..", "bin", `omnilens-bin${ext}`);
+
+const result = spawnSync(binary, process.argv.slice(2), {
+  stdio: "inherit",
+  windowsHide: true,
+});
+
+if (result.error) {
+  console.error("omnilens: binary not found. Run: npm install -g omnilens");
+  console.error("Or: cargo install --git https://github.com/injaehwang/omnilens");
+  process.exit(1);
+}
+
+process.exit(result.status ?? 1);
