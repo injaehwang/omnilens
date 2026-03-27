@@ -1,6 +1,6 @@
 {
   "name": "omnilens",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Your AI's eyes into your codebase. Analyzes entire projects in milliseconds.",
   "license": "Apache-2.0 OR MIT",
   "repository": {
@@ -13,22 +13,12 @@
   "scripts": {
     "postinstall": "node install.js"
   },
-  "optionalDependencies": {
-    "omnilens-linux-x64": "0.1.0",
-    "omnilens-linux-arm64": "0.1.0",
-    "omnilens-darwin-x64": "0.1.0",
-    "omnilens-darwin-arm64": "0.1.0",
-    "omnilens-win32-x64": "0.1.0"
-  },
   "keywords": [
     "code-analysis",
     "verification",
     "ai",
     "semantic-diff",
-    "omnilens",
-    "rust",
-    "typescript",
-    "python"
+    "omnilens"
   ],
   "files": [
     "bin",

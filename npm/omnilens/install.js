@@ -1,51 +1,66 @@
 #!/usr/bin/env node
 
-// Postinstall script: resolve the correct platform-specific binary
-// and symlink it to bin/omnilens.
+// Downloads the omnilens binary from GitHub Releases.
+// No platform-specific npm packages needed.
 
-const { existsSync, mkdirSync, copyFileSync, chmodSync } = require("fs");
-const { join, dirname } = require("path");
+const { existsSync, mkdirSync, chmodSync, createWriteStream, unlinkSync } = require("fs");
+const { join } = require("path");
+const { execSync } = require("child_process");
+
+const VERSION = "v1.0.2";
+const REPO = "injaehwang/omnilens";
 
 const PLATFORMS = {
-  "linux-x64": "omnilens-linux-x64",
-  "linux-arm64": "omnilens-linux-arm64",
-  "darwin-x64": "omnilens-darwin-x64",
-  "darwin-arm64": "omnilens-darwin-arm64",
-  "win32-x64": "omnilens-win32-x64",
+  "linux-x64": { file: "omnilens-linux-x64.tar.gz", binary: "omnilens" },
+  "linux-arm64": { file: "omnilens-linux-arm64.tar.gz", binary: "omnilens" },
+  "darwin-x64": { file: "omnilens-darwin-x64.tar.gz", binary: "omnilens" },
+  "darwin-arm64": { file: "omnilens-darwin-arm64.tar.gz", binary: "omnilens" },
+  "win32-x64": { file: "omnilens-win32-x64.zip", binary: "omnilens.exe" },
 };
 
 const platform = `${process.platform}-${process.arch}`;
-const pkgName = PLATFORMS[platform];
+const info = PLATFORMS[platform];
 
-if (!pkgName) {
-  console.error(
-    `omnilens: unsupported platform ${platform}. Supported: ${Object.keys(PLATFORMS).join(", ")}`
-  );
-  console.error(
-    "You can build from source instead: cargo install omnilens"
-  );
+if (!info) {
+  console.error(`omnilens: unsupported platform ${platform}`);
+  console.error("Build from source: cargo install --git https://github.com/" + REPO);
   process.exit(1);
 }
 
-try {
-  const pkgPath = dirname(require.resolve(`${pkgName}/package.json`));
-  const ext = process.platform === "win32" ? ".exe" : "";
-  const binaryName = `omnilens${ext}`;
-  const src = join(pkgPath, binaryName);
-  const destDir = join(__dirname, "bin");
-  const dest = join(destDir, binaryName);
+const url = `https://github.com/${REPO}/releases/download/${VERSION}/${info.file}`;
+const destDir = join(__dirname, "bin");
+const dest = join(destDir, info.binary);
 
-  if (!existsSync(src)) {
-    console.error(`omnilens: binary not found at ${src}`);
-    console.error(
-      "Try reinstalling: npm install -g omnilens"
+// Skip if already installed.
+if (existsSync(dest)) {
+  console.log("omnilens: binary already installed");
+  process.exit(0);
+}
+
+mkdirSync(destDir, { recursive: true });
+
+try {
+  const tmpFile = join(destDir, info.file);
+
+  // Download.
+  console.log(`omnilens: downloading ${info.file}...`);
+  execSync(`curl -fsSL "${url}" -o "${tmpFile}"`, { stdio: "pipe" });
+
+  // Extract.
+  if (info.file.endsWith(".tar.gz")) {
+    execSync(`tar xzf "${tmpFile}" -C "${destDir}"`, { stdio: "pipe" });
+  } else {
+    // Windows zip — use PowerShell Expand-Archive.
+    execSync(
+      `powershell -Command "Expand-Archive -Force -Path '${tmpFile}' -DestinationPath '${destDir}'"`,
+      { stdio: "pipe" }
     );
-    process.exit(1);
   }
 
-  mkdirSync(destDir, { recursive: true });
-  copyFileSync(src, dest);
+  // Cleanup archive.
+  try { unlinkSync(tmpFile); } catch {}
 
+  // Make executable.
   if (process.platform !== "win32") {
     chmodSync(dest, 0o755);
   }
@@ -57,10 +72,8 @@ try {
   console.log(`  3. Tell your AI: "Review the omnilens snapshot"`);
   console.log(``);
 } catch (err) {
-  console.error(`omnilens: failed to install binary for ${platform}`);
+  console.error(`omnilens: failed to download binary`);
   console.error(err.message);
-  console.error(
-    "\nFallback: install from source with `cargo install omnilens`"
-  );
+  console.error(`\nFallback: cargo install --git https://github.com/${REPO}`);
   process.exit(1);
 }

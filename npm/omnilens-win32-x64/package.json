@@ -1,6 +1,6 @@
 {
   "name": "omnilens-win32-x64",
-  "version": "0.1.0",
+  "version": "1.0.2",
   "description": "omnilens binary for win32-x64",
   "license": "Apache-2.0 OR MIT",
   "repository": {
