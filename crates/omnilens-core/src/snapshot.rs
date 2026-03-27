@@ -120,6 +120,8 @@ pub struct Capability {
 /// Generate a complete project snapshot.
 pub fn generate(graph: &SemanticGraph, duration_ms: u64) -> Snapshot {
     let all_ids = graph.all_node_ids();
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let cwd_str = cwd.to_string_lossy().replace('\\', "/");
 
     let mut files: BTreeMap<String, FileInfo> = BTreeMap::new();
     let mut languages = std::collections::HashSet::new();
@@ -132,7 +134,12 @@ pub fn generate(graph: &SemanticGraph, duration_ms: u64) -> Snapshot {
         let Some(node) = graph.get_node(*id) else { continue };
         if graph.is_placeholder(*id) { continue; }
 
-        let file_path = node.span().file.to_string_lossy().replace('\\', "/");
+        // Convert to relative path.
+        let abs_path = node.span().file.to_string_lossy().replace('\\', "/");
+        let file_path = abs_path
+            .strip_prefix(&format!("{}/", cwd_str))
+            .unwrap_or(&abs_path)
+            .to_string();
         let ext = file_path.rsplit('.').next().unwrap_or("");
         let lang = match ext {
             "rs" => "rust",
@@ -155,30 +162,42 @@ pub fn generate(graph: &SemanticGraph, duration_ms: u64) -> Snapshot {
                 total_functions += 1;
                 let complexity = f.complexity.unwrap_or(0);
 
-                // Get calls (forward impact depth=1).
+                // Get calls (forward impact depth=1), deduplicate.
                 let forward = graph.impact_forward(f.id, 1);
-                let calls: Vec<String> = forward.direct.iter()
+                let mut calls: Vec<String> = forward.direct.iter()
                     .filter_map(|n| graph.get_node(n.node_id))
                     .filter(|n| !graph.is_placeholder(n.id()))
                     .map(|n| n.name().display())
                     .collect();
+                calls.sort();
+                calls.dedup();
 
-                // Get callers (reverse impact depth=1).
+                // Get callers (reverse impact depth=1), exclude tests, deduplicate.
                 let reverse = graph.impact_reverse(f.id, 1);
-                let called_by: Vec<String> = reverse.direct.iter()
+                let mut called_by: Vec<String> = reverse.direct.iter()
                     .filter_map(|n| graph.get_node(n.node_id))
                     .filter(|n| !graph.is_placeholder(n.id()))
                     .map(|n| n.name().display())
+                    .filter(|name| !is_test_name(name))
                     .collect();
+                called_by.sort();
+                called_by.dedup();
 
-                // Cross-file dependencies.
+                // Cross-file dependencies (exclude tests).
                 for caller in &reverse.direct {
                     if let Some(caller_node) = graph.get_node(caller.node_id) {
-                        let caller_file = caller_node.span().file.to_string_lossy().replace('\\', "/");
-                        if caller_file != file_path {
+                        let caller_name = caller_node.name().display();
+                        if is_test_name(&caller_name) { continue; }
+
+                        let caller_abs = caller_node.span().file.to_string_lossy().replace('\\', "/");
+                        let caller_rel = caller_abs
+                            .strip_prefix(&format!("{}/", cwd_str))
+                            .unwrap_or(&caller_abs)
+                            .to_string();
+                        if caller_rel != file_path {
                             dependencies.push(Dependency {
-                                from_file: caller_file,
-                                from_function: caller_node.name().display(),
+                                from_file: caller_rel,
+                                from_function: caller_name,
                                 to_file: file_path.clone(),
                                 to_function: f.name.display(),
                             });
@@ -189,7 +208,7 @@ pub fn generate(graph: &SemanticGraph, duration_ms: u64) -> Snapshot {
                 // Hotspots.
                 if complexity > 15 {
                     hotspots.push(Hotspot {
-                        file: file_path.clone(),
+                        file: file_path.to_string(),
                         function: f.name.display(),
                         line: f.span.start_line,
                         reason: format!("complexity {}", complexity),
@@ -197,7 +216,7 @@ pub fn generate(graph: &SemanticGraph, duration_ms: u64) -> Snapshot {
                 }
                 if f.visibility == Visibility::Public && reverse.total_affected > 5 {
                     hotspots.push(Hotspot {
-                        file: file_path.clone(),
+                        file: file_path.to_string(),
                         function: f.name.display(),
                         line: f.span.start_line,
                         reason: format!("{} callers", reverse.total_affected),
@@ -209,7 +228,7 @@ pub fn generate(graph: &SemanticGraph, duration_ms: u64) -> Snapshot {
                     line: f.span.start_line,
                     visibility: format!("{:?}", f.visibility).to_lowercase(),
                     params: f.params.iter().map(|p| p.name.clone()).collect(),
-                    return_type: f.return_type.as_ref().map(|t| format!("{:?}", t)),
+                    return_type: f.return_type.as_ref().map(|t| format_type(t)),
                     complexity,
                     is_async: f.is_async,
                     calls,
@@ -295,4 +314,65 @@ pub fn generate(graph: &SemanticGraph, duration_ms: u64) -> Snapshot {
             ],
         },
     }
+}
+
+/// Format a TypeRef into human-readable string.
+fn format_type(t: &omnilens_ir::types::TypeRef) -> String {
+    use omnilens_ir::types::{TypeRef, ResolvedType, PrimitiveType};
+
+    match t {
+        TypeRef::Resolved(resolved) => match resolved {
+            ResolvedType::Primitive(p) => match p {
+                PrimitiveType::Bool => "bool".into(),
+                PrimitiveType::Int8 => "i8".into(),
+                PrimitiveType::Int16 => "i16".into(),
+                PrimitiveType::Int32 => "i32".into(),
+                PrimitiveType::Int64 => "i64".into(),
+                PrimitiveType::Uint8 => "u8".into(),
+                PrimitiveType::Uint16 => "u16".into(),
+                PrimitiveType::Uint32 => "u32".into(),
+                PrimitiveType::Uint64 => "u64".into(),
+                PrimitiveType::Float32 => "f32".into(),
+                PrimitiveType::Float64 => "f64".into(),
+                PrimitiveType::String => "string".into(),
+                PrimitiveType::Bytes => "bytes".into(),
+            },
+            ResolvedType::Named { name, generic_args } => {
+                if generic_args.is_empty() {
+                    name.clone()
+                } else {
+                    let args: Vec<String> = generic_args.iter().map(format_type).collect();
+                    format!("{}<{}>", name, args.join(", "))
+                }
+            }
+            ResolvedType::Function { params, return_type } => {
+                let p: Vec<String> = params.iter().map(format_type).collect();
+                format!("({}) -> {}", p.join(", "), format_type(return_type))
+            }
+            ResolvedType::Array(inner) => format!("{}[]", format_type(inner)),
+            ResolvedType::Map { key, value } => format!("Map<{}, {}>", format_type(key), format_type(value)),
+            ResolvedType::Optional(inner) => format!("{} | null", format_type(inner)),
+            ResolvedType::Result { ok, err } => format!("Result<{}, {}>", format_type(ok), format_type(err)),
+            ResolvedType::Tuple(items) => {
+                let parts: Vec<String> = items.iter().map(format_type).collect();
+                format!("({})", parts.join(", "))
+            }
+            ResolvedType::Union(items) => {
+                let parts: Vec<String> = items.iter().map(format_type).collect();
+                parts.join(" | ")
+            }
+            ResolvedType::Unit => "void".into(),
+        },
+        TypeRef::Unresolved(name) => name.clone(),
+        TypeRef::Unknown => "unknown".into(),
+    }
+}
+
+/// Check if a function name looks like a test.
+fn is_test_name(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    lower.starts_with("test")
+        || lower.contains("::test_")
+        || lower.contains("::test")
+        || lower.starts_with("test_")
 }
