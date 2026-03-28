@@ -127,12 +127,34 @@ For detailed data, use omnilens commands (verify, impact, query).
 
 ## After Every Modification
 
-Every time you modify a file, do this before telling the developer you're done:
+omnilens analysis takes ~10ms. Use it aggressively. Every time you modify a file:
 
-1. **Structural check:** `omnilens verify --format json --diff HEAD` — catches breaking changes, syntax errors, bracket mismatches.
-2. **Type/lint check:** Use the project's own tools listed in `snapshot.json → tooling`. Run them on the specific files you changed. Never on the entire project.
-3. **Format check:** If the project has a formatter, run it on the files you changed. If not, ensure your code matches the style of surrounding code.
-4. **If any check fails:** Fix it yourself. Re-run checks. Repeat until everything passes.
+### Step 1: Rescan
+```
+omnilens
+```
+This regenerates `summary.json` and `changes.json` in milliseconds. It's nearly free.
+
+### Step 2: Read changes
+Read `.omnilens/changes.json`. It tells you exactly what your modification affected:
+- Which files changed
+- Which functions were added/removed
+- Which dependencies broke
+- Health score delta
+
+### Step 3: Verify
+```
+omnilens verify --format json --diff HEAD
+```
+This catches syntax errors, bracket mismatches, breaking changes — on changed files only.
+
+### Step 4: Project lint (changed files only)
+Use the project's own tools from `summary.json → tooling`, targeting ONLY files you changed.
+
+### Step 5: Fix and repeat
+If any step finds errors, fix them. Run `omnilens` again. Read `changes.json` again. Repeat until clean.
+
+The key insight: `omnilens` is ~10ms. Run it after every edit, not just at the end. Use `changes.json` as your real-time feedback loop.
 
 ## Scope Rules — CRITICAL
 

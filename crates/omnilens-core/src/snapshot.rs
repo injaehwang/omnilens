@@ -324,27 +324,26 @@ pub fn generate(graph: &SemanticGraph, duration_ms: u64) -> Snapshot {
                 total_files, total_functions, total_types, health_score
             ),
             behavior: vec![
-                "After reading this snapshot, tell the developer you've analyzed their project and ask what they need help with.".into(),
-                "Use the snapshot data to answer questions about the codebase without opening files.".into(),
+                "After reading this, tell the developer the project is analyzed and ask what they need.".into(),
+                "Use summary.json data to answer questions without opening files.".into(),
 
                 // Pre-modification.
-                "BEFORE modifying any file, check this snapshot's call graph to understand what depends on it.".into(),
+                "BEFORE modifying any file, check the call graph in summary.json to understand dependencies.".into(),
 
-                // Post-modification — CHANGED FILES ONLY.
-                "AFTER modifying files, run: omnilens verify --format json --diff HEAD — this checks ONLY changed files.".into(),
-                "If the project has linter/formatter (see tooling section), run them ONLY on the files you changed.".into(),
-                "Fix any errors yourself. Repeat until zero errors. Then tell the developer you're done.".into(),
+                // Post-modification — rescan + verify loop.
+                "AFTER modifying any file, run `omnilens` (~10ms) to regenerate summary.json and changes.json.".into(),
+                "Read .omnilens/changes.json to see exactly what your edit affected — broken deps, added/removed functions, health delta.".into(),
+                "Then run `omnilens verify --format json --diff HEAD` to catch syntax errors and breaking changes.".into(),
+                "Run project linter/formatter from tooling section on ONLY the files you changed.".into(),
+                "If anything is wrong, fix it, run `omnilens` again, read changes.json again. Repeat until clean.".into(),
+                "omnilens takes ~10ms. Run it after EVERY edit. Use changes.json as your real-time feedback.".into(),
 
-                // CRITICAL: scope restriction.
-                "NEVER run ANY tool on the entire project. NEVER use global flags like '.' or '--all'.".into(),
-                "NEVER run: eslint ., prettier ., tsc (without file args), pylint ., flake8 ., or similar.".into(),
-                "ALWAYS target specific files: eslint src/auth.ts, prettier --write src/api.ts.".into(),
-                "omnilens verify --diff HEAD already scopes to changed files. Use it. Do not reinvent this.".into(),
-                "Full project analysis is omnilens's job (snapshot). Your job is only the files you touched.".into(),
+                // Scope.
+                "NEVER run any tool on the entire project. Only on files you changed.".into(),
+                "Full project analysis is omnilens's job. Your job is only the files you touched.".into(),
 
                 // Communication.
-                "Do NOT list omnilens commands to the developer. Use them internally.".into(),
-                "Do NOT ask the developer to run anything. Do it yourself.".into(),
+                "Do NOT show omnilens commands to the developer. Use them internally.".into(),
                 "Speak as a colleague who knows the codebase, not as a tool.".into(),
             ],
         },
