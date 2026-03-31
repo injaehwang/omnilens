@@ -6,7 +6,8 @@ const { existsSync, mkdirSync, chmodSync, unlinkSync, renameSync } = require("fs
 const { join } = require("path");
 const { execSync } = require("child_process");
 
-const VERSION = "v1.2.0";
+const PKG = require(join(__dirname, "package.json"));
+const VERSION = "v" + PKG.version;
 const REPO = "injaehwang/omnilens";
 
 const PLATFORMS = {
