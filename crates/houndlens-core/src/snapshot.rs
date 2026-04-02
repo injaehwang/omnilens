@@ -282,6 +282,14 @@ pub fn generate(graph: &SemanticGraph, duration_ms: u64) -> Snapshot {
     let project_root = std::env::current_dir().unwrap_or_default();
     let tooling = detect_tooling(&project_root);
 
+    // Extract imports from source files.
+    for (file_path, file_info) in files.iter_mut() {
+        let full_path = project_root.join(file_path);
+        if let Ok(content) = std::fs::read_to_string(&full_path) {
+            file_info.imports = extract_imports(&content, &file_info.language);
+        }
+    }
+
     Snapshot {
         generated_at: now,
         analysis_ms: duration_ms,
@@ -402,6 +410,72 @@ fn format_type(t: &houndlens_ir::types::TypeRef) -> String {
 }
 
 /// Check if a function name looks like a test.
+/// Extract import statements from source code.
+fn extract_imports(source: &str, language: &str) -> Vec<String> {
+    let mut imports = Vec::new();
+
+    for line in source.lines() {
+        let trimmed = line.trim();
+
+        match language {
+            "typescript" | "javascript" => {
+                // import { X } from "Y"  or  import X from "Y"
+                if trimmed.starts_with("import ") {
+                    if let Some(from_pos) = trimmed.find("from ") {
+                        let module = trimmed[from_pos + 5..]
+                            .trim()
+                            .trim_matches(|c| c == '"' || c == '\'' || c == ';' || c == ' ');
+                        if !module.is_empty() {
+                            imports.push(module.to_string());
+                        }
+                    }
+                }
+                // const X = require("Y")
+                if trimmed.contains("require(") {
+                    if let Some(start) = trimmed.find("require(\"").or_else(|| trimmed.find("require('")) {
+                        let rest = &trimmed[start + 9..];
+                        if let Some(end) = rest.find(|c| c == '"' || c == '\'') {
+                            imports.push(rest[..end].to_string());
+                        }
+                    }
+                }
+            }
+            "python" => {
+                // from X import Y  or  import X
+                if trimmed.starts_with("from ") {
+                    let parts: Vec<&str> = trimmed.splitn(3, ' ').collect();
+                    if parts.len() >= 2 {
+                        imports.push(parts[1].to_string());
+                    }
+                } else if trimmed.starts_with("import ") {
+                    let module = trimmed[7..].split(" as ").next().unwrap_or("").trim();
+                    if !module.is_empty() {
+                        imports.push(module.to_string());
+                    }
+                }
+            }
+            "rust" => {
+                // use X::Y;  or  use X::Y::{A, B};
+                if trimmed.starts_with("use ") {
+                    let path = trimmed[4..].trim_end_matches(';').trim();
+                    // Get the crate/module path (first segment).
+                    if let Some(first) = path.split("::").next() {
+                        let first = first.trim();
+                        if !first.is_empty() && first != "self" && first != "super" {
+                            imports.push(path.to_string());
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    imports.sort();
+    imports.dedup();
+    imports
+}
+
 fn is_test_name(name: &str) -> bool {
     let lower = name.to_lowercase();
     lower.starts_with("test")
@@ -410,45 +484,57 @@ fn is_test_name(name: &str) -> bool {
         || lower.starts_with("test_")
 }
 
-/// Detect project tooling by checking config files.
+/// Detect project tooling by checking config files and package.json.
 pub fn detect_tooling(root: &std::path::Path) -> Tooling {
     let exists = |name: &str| root.join(name).exists();
 
+    // Read package.json devDependencies + dependencies for fallback detection.
+    let pkg_deps = read_package_deps(root);
+
     // Type checker.
     let type_check = if exists("tsconfig.json") {
-        if exists("node_modules/.bin/vue-tsc") || exists("node_modules/.bin/vue-tsc.cmd") {
+        if exists("node_modules/.bin/vue-tsc") || exists("node_modules/.bin/vue-tsc.cmd")
+            || pkg_deps.contains("vue-tsc") {
             Some("npx vue-tsc --noEmit".into())
         } else {
             Some("npx tsc --noEmit".into())
         }
+    } else if pkg_deps.contains("typescript") {
+        Some("npx tsc --noEmit".into())
     } else {
         None
     };
 
     // Linter.
     let linter = if exists(".eslintrc.js") || exists(".eslintrc.json") || exists(".eslintrc.yml")
-        || exists("eslint.config.js") || exists("eslint.config.mjs") {
+        || exists("eslint.config.js") || exists("eslint.config.mjs")
+        || pkg_deps.contains("eslint") {
         Some("npx eslint".into())
-    } else if exists("pyproject.toml") || exists(".flake8") || exists(".pylintrc") {
+    } else if exists(".flake8") || exists(".pylintrc") || pkg_deps.contains("pylint") || pkg_deps.contains("flake8") {
         Some("python -m pylint".into())
+    } else if exists("pyproject.toml") && (pkg_deps.contains("ruff") || exists("ruff.toml")) {
+        Some("ruff check".into())
     } else {
         None
     };
 
     // Formatter.
     let formatter = if exists(".prettierrc") || exists(".prettierrc.json") || exists(".prettierrc.js")
-        || exists("prettier.config.js") || exists("prettier.config.mjs") {
+        || exists("prettier.config.js") || exists("prettier.config.mjs")
+        || pkg_deps.contains("prettier") {
         Some("npx prettier --write".into())
     } else {
         None
     };
 
     // Test runner.
-    let test_runner = if exists("vitest.config.ts") || exists("vitest.config.js") {
+    let test_runner = if exists("vitest.config.ts") || exists("vitest.config.js")
+        || pkg_deps.contains("vitest") {
         Some("npx vitest run".into())
-    } else if exists("jest.config.js") || exists("jest.config.ts") {
+    } else if exists("jest.config.js") || exists("jest.config.ts")
+        || pkg_deps.contains("jest") {
         Some("npx jest".into())
-    } else if exists("pytest.ini") || exists("pyproject.toml") {
+    } else if exists("pytest.ini") || pkg_deps.contains("pytest") {
         Some("pytest".into())
     } else if exists("Cargo.toml") {
         Some("cargo test".into())
@@ -457,4 +543,24 @@ pub fn detect_tooling(root: &std::path::Path) -> Tooling {
     };
 
     Tooling { type_check, linter, formatter, test_runner }
+}
+
+/// Read dependency names from package.json (both dependencies and devDependencies).
+fn read_package_deps(root: &std::path::Path) -> std::collections::HashSet<String> {
+    let mut deps = std::collections::HashSet::new();
+    let pkg_path = root.join("package.json");
+
+    if let Ok(content) = std::fs::read_to_string(&pkg_path) {
+        if let Ok(pkg) = serde_json::from_str::<serde_json::Value>(&content) {
+            for key in &["dependencies", "devDependencies"] {
+                if let Some(obj) = pkg.get(key).and_then(|v| v.as_object()) {
+                    for name in obj.keys() {
+                        deps.insert(name.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    deps
 }

@@ -53,6 +53,7 @@ pub struct FunctionChange {
     pub file: String,
     pub name: String,
     pub line: u32,
+    pub signature: String,
 }
 
 #[derive(Serialize)]
@@ -145,18 +146,16 @@ pub fn generate_changes(current: &Snapshot, previous_path: &Path) -> Option<Chan
         .map(|(_, f)| f.clone())
         .collect();
 
-    // Signature changes (same name, different params).
+    // Signature changes — compare actual signatures.
     let mut sig_changes = Vec::new();
     for (key, curr_f) in &curr_funcs {
         if let Some(prev_f) = prev_funcs.get(key) {
-            // Compare by checking if the function info differs.
-            // Simple heuristic: if line changed significantly, it was modified.
-            if (curr_f.line as i32 - prev_f.line as i32).abs() > 2 {
+            if curr_f.signature != prev_f.signature {
                 sig_changes.push(SignatureChange {
                     file: curr_f.file.clone(),
                     name: curr_f.name.clone(),
                     line: curr_f.line,
-                    description: format!("moved from line {} to {}", prev_f.line, curr_f.line),
+                    description: format!("{} → {}", prev_f.signature, curr_f.signature),
                 });
             }
         }
@@ -215,10 +214,17 @@ fn collect_functions(snapshot: &Snapshot) -> BTreeMap<String, FunctionChange> {
     for (file, info) in &snapshot.files {
         for func in &info.functions {
             let key = format!("{}::{}", file, func.name);
+            let sig = format!(
+                "{}({}) → {}",
+                func.name,
+                func.params.join(", "),
+                func.return_type.as_deref().unwrap_or("void")
+            );
             map.insert(key, FunctionChange {
                 file: file.clone(),
                 name: func.name.clone(),
                 line: func.line,
+                signature: sig,
             });
         }
     }
