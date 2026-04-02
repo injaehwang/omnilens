@@ -1,6 +1,6 @@
 # houndlens
 
-**AI harness for your codebase.** Give your AI the full picture. Save your tokens.
+**AI guard for your codebase.** Give your AI the full picture. Save your tokens.
 
 houndlens analyzes your entire project in milliseconds and wraps your AI with guardrails — so it understands your code, doesn't break things, and verifies its own work.
 
@@ -49,7 +49,7 @@ Just tell it what you need. houndlens works behind the scenes.
 
 ## How it works
 
-houndlens is an **AI harness** — it wraps your AI's coding workflow with automated analysis and verification.
+houndlens wraps your AI's coding workflow with automated analysis and verification.
 
 ```
 Developer: "let's start houndlens"

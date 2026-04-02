@@ -57,8 +57,8 @@ pub fn run() -> Result<()> {
     // Write AI context files.
     write_ai_context(&cwd)?;
 
-    // Install git pre-commit hook (harness — works with ALL AI tools).
-    install_harness_hook(&cwd)?;
+    // Install git pre-commit hook (guard — works with ALL AI tools).
+    install_guard_hook(&cwd)?;
 
     // Output for human + AI.
     println!();
@@ -217,9 +217,9 @@ fn append_if_missing(path: &std::path::Path, line: &str) -> Result<()> {
 }
 
 /// Install git pre-commit hook that runs houndlens verify.
-/// This is the HARNESS — it works with ALL AI tools (Claude, Cursor, Gemini, etc.)
+/// This is the GUARD — it works with ALL AI tools (Claude, Cursor, Gemini, etc.)
 /// because every tool eventually commits through git.
-fn install_harness_hook(cwd: &std::path::Path) -> Result<()> {
+fn install_guard_hook(cwd: &std::path::Path) -> Result<()> {
     // Find git hooks directory.
     let output = std::process::Command::new("git")
         .args(["rev-parse", "--git-dir"])
@@ -247,7 +247,7 @@ fn install_harness_hook(cwd: &std::path::Path) -> Result<()> {
     }
 
     std::fs::write(&pre_commit, r#"#!/bin/sh
-# houndlens harness — auto-verify before commit
+# houndlens guard — auto-verify before commit
 # This runs with ALL AI tools: Claude, Cursor, Gemini, Copilot, etc.
 
 if command -v houndlens > /dev/null 2>&1; then
@@ -294,7 +294,7 @@ fn install_claude_hooks(cwd: &std::path::Path) -> Result<()> {
     // This is how we send verify results back to Claude's conversation.
     let hook_script = hooks_dir.join("houndlens-verify.sh");
     std::fs::write(&hook_script, r#"#!/bin/sh
-# houndlens harness hook — sends verify results to Claude's context.
+# houndlens — auto-verify after AI edits, report results to AI.
 
 if ! command -v houndlens > /dev/null 2>&1; then
     exit 0
@@ -307,12 +307,9 @@ BREAKING=$(echo "$RESULT" | grep -o '"breaking":[0-9]*' | grep -o '[0-9]*')
 CHANGES=$(echo "$RESULT" | grep -o '"total_changes":[0-9]*' | grep -o '[0-9]*')
 
 if [ "${BREAKING:-0}" -gt 0 ]; then
-    # Send breaking change info to Claude via additionalContext.
-    echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"houndlens: ${BREAKING} breaking changes detected. Read .houndlens/changes.json and fix them before continuing.\"}}"
-    exit 0
+    echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"houndlens: ${BREAKING} breaking changes detected. Read .houndlens/changes.json and fix them.\"}}"
 elif [ "${CHANGES:-0}" -gt 0 ]; then
-    echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"houndlens: ${CHANGES} semantic changes detected. Check .houndlens/changes.json if needed.\"}}"
-    exit 0
+    echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"houndlens: ${CHANGES} changes verified OK.\"}}"
 fi
 
 exit 0
