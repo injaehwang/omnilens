@@ -411,7 +411,7 @@ fn is_test_name(name: &str) -> bool {
 }
 
 /// Detect project tooling by checking config files.
-fn detect_tooling(root: &std::path::Path) -> Tooling {
+pub fn detect_tooling(root: &std::path::Path) -> Tooling {
     let exists = |name: &str| root.join(name).exists();
 
     // Type checker.

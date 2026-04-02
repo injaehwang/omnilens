@@ -186,10 +186,35 @@ pub fn run_verification(
         });
     }
 
-    // Step 5: Invariant checking.
+    // Step 5: Run project's own tools (tsc, eslint, pytest, cargo) on changed files.
+    let project_root = std::env::current_dir().unwrap_or_default();
+    let tooling = crate::snapshot::detect_tooling(&project_root);
+    let tool_errors = crate::tool_runner::run_project_tools(&tooling, &changed_files, &project_root);
+    for err in &tool_errors {
+        let severity = match err.severity {
+            crate::tool_runner::ToolSeverity::Error => ChangeRisk::Breaking,
+            crate::tool_runner::ToolSeverity::Warning => ChangeRisk::NeedsReview,
+        };
+        semantic_changes.push(SemanticChange {
+            location: houndlens_ir::SourceSpan {
+                file: std::path::PathBuf::from(&err.file),
+                start_byte: 0,
+                end_byte: 0,
+                start_line: err.line,
+                start_col: err.col,
+                end_line: err.line,
+                end_col: err.col,
+            },
+            kind: SemanticChangeKind::ControlFlowChange,
+            description: format!("[{}] {}", err.tool, err.message),
+            risk: severity,
+        });
+    }
+
+    // Step 6: Invariant checking.
     let invariant_violations = check_invariants_on_changes(graph, &changed_files);
 
-    // Step 6: Compute risk score.
+    // Step 7: Compute risk score.
     let mut risk_score: f64 = 0.0;
     for change in &semantic_changes {
         risk_score += match change.risk {
@@ -205,7 +230,7 @@ pub fn run_verification(
     }
     risk_score = risk_score.min(1.0);
 
-    // Step 7: Generate test suggestions.
+    // Step 8: Generate test suggestions.
     let suggested_tests = generate_test_suggestions(graph, &changed_files);
 
     let confidence = if base_ref.is_some() { 0.85 } else { 0.5 };

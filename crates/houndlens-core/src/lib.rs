@@ -13,6 +13,7 @@ pub mod semantic_diff;
 pub mod snapshot;
 pub mod summary;
 pub mod syntax_check;
+pub mod tool_runner;
 pub mod verify;
 pub mod config;
 
