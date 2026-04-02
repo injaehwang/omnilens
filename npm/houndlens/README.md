@@ -1,8 +1,8 @@
 # houndlens
 
-**Give your AI the full picture. Save your tokens.**
+**AI harness for your codebase.** Give your AI the full picture. Save your tokens.
 
-houndlens analyzes your entire project in milliseconds — every file, function, dependency, and impact chain. AI sees the full picture, works faster, and doesn't break things.
+houndlens analyzes your entire project in milliseconds and wraps your AI with guardrails — so it understands your code, doesn't break things, and verifies its own work.
 
 ## Install
 
@@ -41,30 +41,67 @@ Open your AI tool and say:
 | Windsurf | `let's start houndlens` |
 | Any AI | `let's start houndlens` |
 
-Any variation works: `houndlens`, `start houndlens`, `houndlens 시작`, `review houndlens snapshot` — anything mentioning "houndlens".
-
-AI reads the analysis and responds:
-
-> "Project analyzed. 45 files, 320 functions. What would you like to do?"
+Any variation works — `houndlens`, `start houndlens`, `houndlens 시작` — anything mentioning "houndlens".
 
 ### Step 3: Work with your AI
 
-Just tell it what you need. AI uses houndlens internally to verify its work.
-
-```
-You: "Add empty state handling to all tables"
-You: "Fix the login function — it's not handling errors"
-You: "Refactor auth service into smaller functions"
-```
-
-AI modifies your code, checks for breaking changes, and fixes them automatically.
+Just tell it what you need. houndlens works behind the scenes.
 
 ## How it works
 
-1. `houndlens` creates `.houndlens/snapshot.json` — a complete map of your project
-2. AI reads the snapshot and understands every file, function, and dependency
-3. When AI modifies code, it runs `houndlens verify` to catch errors
-4. If something breaks, AI fixes it before telling you it's done
+houndlens is an **AI harness** — it wraps your AI's coding workflow with automated analysis and verification.
+
+```
+You say "houndlens" in AI chat
+        ↓
+AI reads .houndlens/summary.json (3KB, not the full snapshot)
+AI understands your entire project: files, functions, dependencies, health
+        ↓
+You tell AI what to do
+        ↓
+AI modifies code
+        ↓
+houndlens harness kicks in:
+  · Git pre-commit hook blocks broken code (all AI tools)
+  · Claude Code hook sends verify results to AI's context
+  · AI reads .houndlens/changes.json to see what it broke
+  · AI fixes issues automatically
+        ↓
+Clean code committed
+```
+
+### What houndlens generates
+
+```
+.houndlens/
+  snapshot.json        Full project analysis (internal use)
+  summary.json         Lightweight overview for AI (3KB)
+  changes.json         What changed since last scan
+  ai-instructions.md   How AI should behave
+
+.git/hooks/pre-commit  Blocks broken commits (all AI tools)
+.claude/hooks/         Real-time verify for Claude Code
+CLAUDE.md              One-line pointer for Claude
+.cursorrules           One-line pointer for Cursor
+.windsurfrules         One-line pointer for Windsurf
+```
+
+### Three layers of protection
+
+| Layer | Scope | How |
+|-------|-------|-----|
+| **Instructions** | All AI tools | AI reads rules from summary.json |
+| **Claude hooks** | Claude Code | Verify results injected into AI context after every edit |
+| **Git hook** | All AI tools | Pre-commit blocks broken code — nothing escapes |
+
+### Token efficiency
+
+| Without houndlens | With houndlens |
+|-------------------|----------------|
+| AI opens files one by one | AI reads 3KB summary |
+| AI guesses dependencies | AI knows the call graph |
+| AI hopes nothing broke | AI verifies with changes.json |
+| ~50,000 tokens to understand project | ~1,000 tokens |
 
 ## Supported languages
 
@@ -72,8 +109,8 @@ Rust · TypeScript · JavaScript · Python
 
 ## Performance
 
-| Project size | Time |
-|-------------|------|
+| Project size | Analysis time |
+|-------------|---------------|
 | 10 files | ~10ms |
 | 100 files | ~100ms |
 | 1000 files | ~1s |
