@@ -279,23 +279,63 @@ exit 0
     Ok(())
 }
 
-/// Install Claude Code specific hooks for real-time verification.
+/// Install Claude Code hooks for real-time verification.
 fn install_claude_hooks(cwd: &std::path::Path) -> Result<()> {
     let claude_dir = cwd.join(".claude");
-    std::fs::create_dir_all(&claude_dir)?;
+    let hooks_dir = claude_dir.join("hooks");
+    std::fs::create_dir_all(&hooks_dir)?;
 
+    // Write the hook script that outputs JSON with additionalContext.
+    // This is how we send verify results back to Claude's conversation.
+    let hook_script = hooks_dir.join("omnilens-verify.sh");
+    std::fs::write(&hook_script, r#"#!/bin/sh
+# omnilens harness hook — sends verify results to Claude's context.
+
+if ! command -v omnilens > /dev/null 2>&1; then
+    exit 0
+fi
+
+# Rescan and verify.
+omnilens > /dev/null 2>&1
+RESULT=$(omnilens verify --format json --diff HEAD 2>/dev/null)
+BREAKING=$(echo "$RESULT" | grep -o '"breaking":[0-9]*' | grep -o '[0-9]*')
+CHANGES=$(echo "$RESULT" | grep -o '"total_changes":[0-9]*' | grep -o '[0-9]*')
+
+if [ "${BREAKING:-0}" -gt 0 ]; then
+    # Send breaking change info to Claude via additionalContext.
+    echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"omnilens: ${BREAKING} breaking changes detected. Read .omnilens/changes.json and fix them before continuing.\"}}"
+    exit 0
+elif [ "${CHANGES:-0}" -gt 0 ]; then
+    echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"omnilens: ${CHANGES} semantic changes detected. Check .omnilens/changes.json if needed.\"}}"
+    exit 0
+fi
+
+exit 0
+"#)?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&hook_script, std::fs::Permissions::from_mode(0o755))?;
+    }
+
+    // Write settings.local.json with correct Claude Code hook format.
     let settings_path = claude_dir.join("settings.local.json");
 
     let hooks_config = serde_json::json!({
         "hooks": {
-            "afterEdit": [{
-                "command": "omnilens verify --format json --diff HEAD 2>/dev/null | head -1",
-                "description": "omnilens: verify changes after edit"
-            }],
-            "afterWrite": [{
-                "command": "omnilens verify --format json --diff HEAD 2>/dev/null | head -1",
-                "description": "omnilens: verify changes after write"
-            }]
+            "PostToolUse": [
+                {
+                    "matcher": "Edit|Write",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/omnilens-verify.sh",
+                            "timeout": 30
+                        }
+                    ]
+                }
+            ]
         }
     });
 
