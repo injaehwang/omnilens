@@ -73,17 +73,27 @@ pub fn generate_summary(snapshot: &Snapshot) -> Summary {
 
     let top_deps: Vec<String> = snapshot.dependencies.iter()
         .take(20)
-        .map(|d| format!("{} → {}", d.from_function, d.to_function))
+        .map(|d| format!("{} -> {}", d.from_function, d.to_function))
         .collect();
 
     // Build file map: compact function signatures, types, imports per file.
+    // Exclude test files — they're noise for AI understanding the project.
     let mut file_map: BTreeMap<String, FileSummary> = BTreeMap::new();
     for (path, info) in &snapshot.files {
+        let file_name = path.rsplit('/').next().unwrap_or(path);
+        if file_name.starts_with("test_")
+            || file_name.contains(".test.")
+            || file_name.contains(".spec.")
+            || file_name.starts_with("tests_")
+            || path.contains("__tests__")
+        {
+            continue;
+        }
         let functions: Vec<String> = info.functions.iter().map(|f| {
             let params = f.params.join(", ");
             let ret = f.return_type.as_deref().unwrap_or("void");
             let prefix = if f.is_async { "async " } else { "" };
-            format!("{}{}({}) → {}", prefix, f.name, params, ret)
+            format!("{}{}({}) -> {}", prefix, f.name, params, ret)
         }).collect();
 
         let types: Vec<String> = info.types.iter().map(|t| {

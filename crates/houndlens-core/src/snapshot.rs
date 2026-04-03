@@ -441,16 +441,20 @@ fn extract_imports(source: &str, language: &str) -> Vec<String> {
                 }
             }
             "python" => {
-                // from X import Y  or  import X
+                // from X import Y  or  import X  or  import X, Y
                 if trimmed.starts_with("from ") {
                     let parts: Vec<&str> = trimmed.splitn(3, ' ').collect();
                     if parts.len() >= 2 {
                         imports.push(parts[1].to_string());
                     }
                 } else if trimmed.starts_with("import ") {
-                    let module = trimmed[7..].split(" as ").next().unwrap_or("").trim();
-                    if !module.is_empty() {
-                        imports.push(module.to_string());
+                    // Handle: import json, base64 → ["json", "base64"]
+                    let rest = &trimmed[7..];
+                    for module in rest.split(',') {
+                        let module = module.split(" as ").next().unwrap_or("").trim();
+                        if !module.is_empty() {
+                            imports.push(module.to_string());
+                        }
                     }
                 }
             }
