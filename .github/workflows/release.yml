@@ -105,43 +105,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          merge-multiple: true
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
 
-      - name: Prepare npm packages
+      - name: Publish houndlens to npm
         run: |
           VERSION=${GITHUB_REF_NAME#v}
-
-          # Platform packages
-          for pkg in npm/houndlens-linux-x64 npm/houndlens-linux-arm64 npm/houndlens-darwin-x64 npm/houndlens-darwin-arm64 npm/houndlens-win32-x64; do
-            NAME=$(basename $pkg)
-            jq --arg v "$VERSION" '.version = $v' $pkg/package.json > tmp.json && mv tmp.json $pkg/package.json
-
-            # Copy binary into package
-            case $NAME in
-              *-win32-*) cp ${NAME}.zip $pkg/ && cd $pkg && 7z x ${NAME}.zip && rm ${NAME}.zip && cd .. ;;
-              *) cp ${NAME}.tar.gz $pkg/ && cd $pkg && tar xzf ${NAME}.tar.gz && rm ${NAME}.tar.gz && cd .. ;;
-            esac
-          done
-
-          # Main wrapper package
           jq --arg v "$VERSION" '.version = $v' npm/houndlens/package.json > tmp.json && mv tmp.json npm/houndlens/package.json
-          for dep in $(jq -r '.optionalDependencies | keys[]' npm/houndlens/package.json); do
-            jq --arg d "$dep" --arg v "$VERSION" '.optionalDependencies[$d] = $v' npm/houndlens/package.json > tmp.json && mv tmp.json npm/houndlens/package.json
-          done
-
-      - name: Publish to npm
-        run: |
-          for pkg in npm/houndlens-linux-x64 npm/houndlens-linux-arm64 npm/houndlens-darwin-x64 npm/houndlens-darwin-arm64 npm/houndlens-win32-x64 npm/houndlens; do
-            cd $pkg
-            npm publish --access public || true
-            cd ../..
-          done
+          cd npm/houndlens
+          npm publish --access public || true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
