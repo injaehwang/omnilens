@@ -53,21 +53,24 @@ houndlens verify --diff HEAD
 
 One command. All tools. Only changed files.
 
-### 3. AI feedback loop
+### 3. AI ↔ houndlens verification loop
 
+**Claude Code** — automatic ping-pong (hook-enforced):
 ```
 AI modifies auth.ts
-  → houndlens (rescan, 10ms)
-  → houndlens verify (runs tsc + eslint on auth.ts only)
-  → AI reads result: "auth.ts:42 missing argument"
-  → AI fixes auth.ts
-  → houndlens verify: 0 errors
-  → done
+  → hook fires → houndlens verify → result injected into AI conversation
+  → AI fixes → hook fires again → 0 errors → done
+```
+
+**Other AI tools** — instruction-based (not guaranteed):
+```
+AI modifies auth.ts
+  → AI follows ai-instructions.md → runs houndlens verify → fixes errors
 ```
 
 ### 4. Commit protection
 
-Git pre-commit hook blocks broken code. Works with all AI tools.
+**All AI tools** — git pre-commit hook blocks broken code. No exceptions.
 
 ## Supported languages
 
